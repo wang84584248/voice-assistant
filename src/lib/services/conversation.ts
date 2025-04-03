@@ -13,6 +13,48 @@ export async function getUserConversation(userId: string): Promise<IConversation
   return ConversationModel.findOne({ userId }).sort({ updatedAt: -1 });
 }
 
+// 获取用户的所有会话
+export async function getAllUserConversations(userId: string): Promise<IConversation[]> {
+  await connectToDatabase();
+  return ConversationModel.find({ userId }).sort({ updatedAt: -1 });
+}
+
+// 获取特定会话
+export async function getConversationById(conversationId: string): Promise<IConversation | null> {
+  await connectToDatabase();
+  return ConversationModel.findById(conversationId);
+}
+
+// 删除特定会话
+export async function deleteConversation(conversationId: string): Promise<boolean> {
+  await connectToDatabase();
+  const result = await ConversationModel.findByIdAndDelete(conversationId);
+  return !!result;
+}
+
+// 生成会话的标题
+export function generateConversationTitle(conversation: IConversation): string {
+  if (!conversation.messages.length) {
+    return "新对话";
+  }
+  
+  // 查找第一条用户消息
+  const firstUserMessage = conversation.messages.find(m => m.role === 'user');
+  if (!firstUserMessage) {
+    return "新对话";
+  }
+  
+  // 从第一条用户消息中提取标题
+  const content = firstUserMessage.content.trim();
+  
+  // 如果消息内容太长，截取前20个字符
+  if (content.length > 20) {
+    return `${content.substring(0, 20)}...`;
+  }
+  
+  return content;
+}
+
 // 创建新的对话
 export async function createConversation(userId: string, initialMessage?: IMessage): Promise<IConversation> {
   await connectToDatabase();

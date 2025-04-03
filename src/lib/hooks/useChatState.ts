@@ -1,26 +1,30 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from '@/components/ui/toast';
+import { useToast } from '@/components/ui/toast/use-toast';
 
 export interface Message {
-  text: string;
-  isUser: boolean;
-  id?: string; // 可选的消息ID
+  id?: string;
+  role?: 'user' | 'assistant' | 'system';
+  content?: string;
+  text?: string;
+  isUser?: boolean;
+  timestamp?: Date;
 }
 
-export function useChatState(initialMessage = "你好！我是你的语音助手，有什么我可以帮助你的吗？") {
+export function useChatState(initialMessage = "你好！我是你的语音助手，有什么我可以帮助你的吗？", existingConversationId?: string) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { text: initialMessage, isUser: false },
   ]);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(existingConversationId || null);
   const [userId, setUserId] = useState<string | null>(null);
   const [streamingMessage, setStreamingMessage] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   // 滚动到最新消息
   useEffect(() => {
@@ -39,19 +43,21 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
       setUserId(newUserId);
     }
     
-    // 恢复对话ID
-    const storedConversationId = localStorage.getItem('conversationId');
-    if (storedConversationId) {
-      setConversationId(storedConversationId);
+    // 如果没有提供已有会话ID，则尝试从localStorage恢复
+    if (!existingConversationId) {
+      const storedConversationId = localStorage.getItem('conversationId');
+      if (storedConversationId) {
+        setConversationId(storedConversationId);
+      }
     }
-  }, []);
+  }, [existingConversationId]);
 
   // 清除会话状态
   const clearConversation = () => {
     if (window.confirm('确定要清除所有对话记录吗？')) {
       localStorage.removeItem('conversationId');
-      localStorage.removeItem('userId');
-      window.location.reload();
+      setMessages([{ text: initialMessage, isUser: false }]);
+      setStreamingMessage("");
     }
   };
 
@@ -201,15 +207,16 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
   // 处理错误
   const handleError = (error: unknown) => {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      console.log('请求已取消');
-    } else {
-      console.error('发送消息时出错:', error);
-      // 显示错误消息
-      setMessages(msgs => [...msgs, { 
-        text: '抱歉，处理您的请求时出现了问题。请稍后再试。', 
-        isUser: false 
-      }]);
+      console.log('请求被取消');
+      return;
     }
+    
+    console.error('发送消息时出错:', error);
+    toast({
+      title: "错误",
+      description: `发送消息失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      variant: "destructive"
+    });
   };
 
   // 处理语音输入
@@ -284,6 +291,7 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
 
   return {
     messages,
+    setMessages,
     input,
     setInput,
     isLoading,
@@ -298,6 +306,6 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
     handleVoiceInput,
     startRecording,
     stopRecording,
-    resetChat,
+    resetChat
   };
 } 
