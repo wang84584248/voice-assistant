@@ -1,14 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Card, 
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, MessageSquare, Plus } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Calendar, MessageCircle } from "lucide-react";
 import { useToast } from "@/components/ui/toast/use-toast";
 
 interface Conversation {
@@ -24,6 +17,7 @@ interface ConversationListProps {
   onNewConversation: () => void;
   isLoading: boolean;
   currentConversationId?: string;
+  onSelectConversation?: (id: string) => void;
 }
 
 export function ConversationList({
@@ -31,13 +25,18 @@ export function ConversationList({
   onDelete,
   onNewConversation,
   isLoading,
-  currentConversationId
+  currentConversationId,
+  onSelectConversation
 }: ConversationListProps) {
   const router = useRouter();
   const { toast } = useToast();
 
   const handleConversationClick = (id: string) => {
-    router.push(`/chat/${id}`);
+    if (onSelectConversation) {
+      onSelectConversation(id);
+    } else {
+      router.push(`/chat/${id}`);
+    }
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -59,68 +58,86 @@ export function ConversationList({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const now = new Date();
+    
+    // 今天的日期
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // 昨天的日期
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // 比较日期部分
+    const dateWithoutTime = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    if (dateWithoutTime.getTime() === today.getTime()) {
+      return "今天";
+    } else if (dateWithoutTime.getTime() === yesterday.getTime()) {
+      return "昨天";
+    } else {
+      // 返回年月，例如：2023-01
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
   };
+
+  // 按日期对会话进行分组
+  const groupedConversations = conversations.reduce((acc, conversation) => {
+    const dateGroup = formatDate(conversation.updatedAt);
+    if (!acc[dateGroup]) {
+      acc[dateGroup] = [];
+    }
+    acc[dateGroup].push(conversation);
+    return acc;
+  }, {} as Record<string, Conversation[]>);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">会话历史</h2>
-        <Button onClick={onNewConversation} disabled={isLoading}>
-          <Plus className="h-4 w-4 mr-2" />
-          <span>新对话</span>
-        </Button>
-      </div>
+      {/* 新对话按钮 */}
+      <Button 
+        onClick={onNewConversation}
+        className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2"
+      >
+        <Plus className="h-5 w-5" />
+        开启新对话
+      </Button>
 
       {isLoading ? (
-        <div className="flex justify-center p-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+        <div className="flex justify-center p-6">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       ) : conversations.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-gray-500">
-            <MessageSquare className="mx-auto h-12 w-12 opacity-50 mb-2" />
-            <p>暂无会话记录</p>
-            <Button onClick={onNewConversation} variant="ghost" className="mt-2">
-              开始新对话
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center text-gray-400 mt-8">
+          <p>暂无历史会话</p>
+        </div>
       ) : (
-        conversations.map((conversation) => (
-          <Card 
-            key={conversation.id}
-            className={`cursor-pointer hover:shadow-md transition-shadow ${
-              currentConversationId === conversation.id ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => handleConversationClick(conversation.id)}
-          >
-            <CardHeader className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-base">{conversation.title}</CardTitle>
-                  <CardDescription className="text-xs mt-1">
-                    {formatDate(conversation.updatedAt)} · {conversation.messageCount} 条消息
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => handleDelete(e, conversation.id)}
-                  className="h-8 w-8 rounded-full"
+        <div className="space-y-4">
+          {/* 按日期分组显示会话 */}
+          {Object.entries(groupedConversations).map(([dateGroup, items]) => (
+            <div key={dateGroup} className="space-y-2">
+              <h3 className="text-sm text-gray-400 py-1">{dateGroup}</h3>
+              {items.map((conversation) => (
+                <div 
+                  key={conversation.id}
+                  className={`px-3 py-3 rounded-lg cursor-pointer hover:bg-gray-800 transition-colors ${
+                    currentConversationId === conversation.id ? 'bg-gray-800' : ''
+                  }`}
+                  onClick={() => handleConversationClick(conversation.id)}
                 >
-                  <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-        ))
+                  <div className="flex justify-between items-center group">
+                    <div className="text-gray-200 truncate max-w-[85%]">
+                      {conversation.title}
+                    </div>
+                    <button
+                      onClick={(e) => handleDelete(e, conversation.id)}
+                      className="h-8 w-8 rounded-full text-gray-500 hover:text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="h-4 w-4 mx-auto" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

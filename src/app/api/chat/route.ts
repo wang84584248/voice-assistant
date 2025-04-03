@@ -92,27 +92,13 @@ async function getOrCreateConversation(
       return result;
     }
   } else {
-    // 尝试查找现有对话
-    const existingConversation = await getUserConversation(userId);
-    
-    if (existingConversation) {
-      logInfo(`找到用户 ${userId} 的现有对话`, undefined, requestId);
-      // 添加到现有对话
-      const result = await addMessageToConversation(existingConversation._id.toString(), {
-        role: 'user',
-        content: message,
-        timestamp: new Date()
-      });
-      return result!;
-    } else {
-      logInfo(`为用户 ${userId} 创建新对话`, undefined, requestId);
-      // 创建新对话
-      return await createConversation(userId, {
-        role: 'user',
-        content: message,
-        timestamp: new Date()
-      });
-    }
+    // conversationId为null或undefined时，直接创建新对话
+    logInfo(`为用户 ${userId} 创建新对话`, undefined, requestId);
+    return await createConversation(userId, {
+      role: 'user',
+      content: message,
+      timestamp: new Date()
+    });
   }
 }
 

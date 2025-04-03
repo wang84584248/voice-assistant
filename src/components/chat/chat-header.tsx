@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2, Sparkles } from "lucide-react";
 
 interface ChatHeaderProps {
   title: string;
@@ -16,33 +16,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   showBackButton = false, 
   onBack 
 }) => {
+  const handleClearClick = () => {
+    if (window.confirm('确定要清除所有对话记录吗？')) {
+      onClear();
+    }
+  };
+
   return (
-    <CardHeader className="flex flex-row items-center justify-between">
-      {showBackButton && onBack && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBack}
-          className="text-gray-500 mr-2"
-          title="返回"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      )}
-      <CardTitle className={`text-center text-2xl ${showBackButton ? '' : 'flex-grow'}`}>
-        {title}
-      </CardTitle>
-      <div className="flex ml-auto">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClear}
-          className="text-gray-500 hover:text-red-500"
-          title="清除对话"
-        >
-          <Trash className="h-5 w-5" />
-        </Button>
+    <CardHeader className="flex flex-row items-center justify-between border-b border-gray-800 bg-gray-900 py-4">
+      <div className="flex items-center flex-grow">
+        {showBackButton && onBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="text-gray-400 hover:text-gray-300 mr-2 rounded-full"
+            title="返回"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="h-5 w-5 text-blue-400" />
+          <CardTitle className="text-xl font-medium text-gray-200">
+            {title}
+          </CardTitle>
+        </div>
       </div>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleClearClick}
+        className="text-gray-400 hover:text-red-400 rounded-full"
+        title="清除对话"
+      >
+        <Trash2 className="h-5 w-5" />
+      </Button>
     </CardHeader>
   );
 }; 

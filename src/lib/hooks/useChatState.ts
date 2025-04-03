@@ -54,11 +54,11 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
 
   // 清除会话状态
   const clearConversation = () => {
-    if (window.confirm('确定要清除所有对话记录吗？')) {
-      localStorage.removeItem('conversationId');
-      setMessages([{ text: initialMessage, isUser: false }]);
-      setStreamingMessage("");
-    }
+    // 直接清除会话，不需要确认
+    localStorage.removeItem('conversationId');
+    setConversationId(null);
+    setMessages([{ text: initialMessage, isUser: false }]);
+    setStreamingMessage("");
   };
 
   // 更新输入
@@ -105,6 +105,9 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
       
       // 清空当前流式消息
       setStreamingMessage("");
+
+      // 记录发送请求时的conversationId状态
+      console.log(`发送消息，当前会话ID: ${conversationId}`);
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -114,7 +117,7 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
         body: JSON.stringify({ 
           message: userMessage,
           userId,
-          conversationId
+          conversationId: conversationId // 明确指定conversationId，如果为null则创建新会话
         }),
         signal: abortControllerRef.current.signal
       });
@@ -289,6 +292,45 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
     router.refresh();
   }, [router]);
 
+  // 加载特定会话的消息
+  const loadConversation = async (conversationId: string) => {
+    try {
+      // 保存会话ID到localStorage
+      localStorage.setItem('conversationId', conversationId);
+      setConversationId(conversationId);
+      
+      // 获取特定会话的详情
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      
+      if (!response.ok) {
+        throw new Error("获取会话详情失败");
+      }
+      
+      const data = await response.json();
+      
+      // 转换消息格式
+      const formattedMessages: Message[] = data.messages.map((msg: any) => ({
+        id: Math.random().toString(36).substring(2, 15),
+        text: msg.content || "",
+        isUser: msg.role === 'user',
+        timestamp: new Date(msg.timestamp)
+      }));
+      
+      // 设置消息列表
+      setMessages(formattedMessages);
+      
+      return true;
+    } catch (error) {
+      console.error("加载会话出错:", error);
+      toast({
+        title: "加载失败",
+        description: "无法加载会话内容，请重试",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   return {
     messages,
     setMessages,
@@ -306,6 +348,8 @@ export function useChatState(initialMessage = "你好！我是你的语音助手
     handleVoiceInput,
     startRecording,
     stopRecording,
-    resetChat
+    resetChat,
+    loadConversation,
+    conversationId
   };
 } 
